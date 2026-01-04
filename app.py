@@ -49,17 +49,43 @@ filtered_raw = raw_df[mask].copy()
 # ================= 3. 核心计算与可视化 =================
 
 # --- Part 1: 历史趋势 (全市场) ---
-# 注意：历史趋势图通常看全市场，这里暂时保持全A，如果需要联动筛选也可以改
+# 1. 准备数据
 daily_counts = filtered_raw.groupby(['date_str', 'group'], observed=False).size().reset_index(name='count')
 
-st.subheader("1. 全市场涨跌分布历史趋势")
-fig_main = px.bar(
-    daily_counts, x='date_str', y='count', color='group',
-    color_discrete_map=COLOR_MAP, category_orders={'group': ORDER_LIST}
-)
-fig_main.update_layout(height=400, bargap=0.15, xaxis=dict(type='category', tickangle=-45), title="全A股区间分布")
-st.plotly_chart(fig_main, use_container_width=True)
+# 2. 强制排序：确保 >7% 在最左边，<-7% 在最右边
+daily_counts['group'] = pd.Categorical(daily_counts['group'], categories=ORDER_LIST, ordered=True)
+daily_counts = daily_counts.sort_values(['date_str', 'group'])
 
+st.subheader("1. 全市场涨跌分布历史趋势")
+
+# 3. 绘图 (核心修改在这里)
+fig_main = px.bar(
+    daily_counts, 
+    x='date_str', 
+    y='count', 
+    color='group',
+    # 🌟 关键参数：让柱子并排站立，而不是堆叠
+    barmode='group',  
+    color_discrete_map=COLOR_MAP, 
+    category_orders={'group': ORDER_LIST}
+)
+
+# 4. 样式美化
+fig_main.update_layout(
+    height=450, 
+    xaxis=dict(
+        title="", 
+        type='category',
+        tickangle=-45 
+    ),
+    yaxis=dict(title="家数"),
+    title="全A股区间分布",
+    # 调整柱子之间的间距，让它们紧凑一点，像你的截图那样
+    bargap=0.15,      # 不同日期的间距
+    bargroupgap=0.05  # 同一天内不同颜色柱子的间距
+)
+
+st.plotly_chart(fig_main, use_container_width=True)
 # =======================================================
 # --- Part 2: 逻辑验证 (测谎仪 + 指南针) ---
 # =======================================================
@@ -200,3 +226,4 @@ st.markdown(
     </div>""",
     unsafe_allow_html=True
 )
+
